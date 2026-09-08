@@ -1,0 +1,23 @@
+{
+  "name": "brainstack-chatgpt",
+  "interface": {
+    "displayName": "Brainstack for ChatGPT / Codex"
+  },
+  "plugins": [
+    {
+      "name": "brainstack",
+      "source": {
+        "source": "local",
+        "path": "./plugins/brainstack"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE",
+        "products": [
+          "CODEX"
+        ]
+      },
+      "category": "Productivity"
+    }
+  ]
+}

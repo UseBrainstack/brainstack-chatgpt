@@ -1,0 +1,28 @@
+GENERATED_FROM: brainstack-universal (the proven Claude Code plugin at
+github.com/UseBrainstack/brainstack-claude), re-shaped for the Codex plugin
+system used by the ChatGPT desktop app (Codex + ChatGPT-work).
+
+Same vgb binaries (Mac universal Mach-O + Windows PE), byte-identical copies of
+the brainstack-universal runtime — connector (`vgb connect`) and capture hooks
+(`vgb hook <event>`) in one native binary, no Node. Same OAuth token at
+~/.vgb/token.json.
+
+What changed vs the Claude repo (all verified against the codex CLI + ~/.codex
+on this machine, 2026-09-08):
+  - Marketplace manifest moved to .agents/plugins/marketplace.json with the
+    Codex schema (interface.displayName; plugins[].source={source,path};
+    policy={installation,authentication,products:["CODEX"]}; category).
+  - Plugin manifest moved to plugins/brainstack/.codex-plugin/plugin.json and
+    gained the Codex `interface` block.
+  - .mcp.json uses a relative stdio command (./runtime/vgb + cwd:".") instead
+    of the ${CLAUDE_PLUGIN_ROOT} variable — matches how Codex stdio plugins
+    (codex-security, data-analytics) reference their servers.
+  - hooks.json uses Codex event names (SessionStart / Stop / PreCompact) and
+    single-string commands ("./runtime/vgb hook session-end") — matches the
+    figma plugin's bundled hooks.json and the installed ~/.codex/hooks.json.
+    Codex fires Stop (not SessionEnd) as its per-turn capture signal on this
+    machine; vgb is driven by the `session-end` ARG, not the stdin event name.
+  - backfill-old-chats.sh targets Codex rollout transcripts only and locates an
+    installed vgb under ~/.codex/plugins/cache/*/brainstack/*/runtime/vgb.
+
+Connector endpoint unchanged: https://usebrainstack.com/mcp

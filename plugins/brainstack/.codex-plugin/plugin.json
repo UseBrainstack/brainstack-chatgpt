@@ -1,0 +1,36 @@
+{
+  "name": "brainstack",
+  "version": "0.1.0",
+  "description": "Brainstack for the ChatGPT desktop app (Codex + ChatGPT-work) — one native binary does the connector AND automatic capture hooks. No Node. Secret-less OAuth.",
+  "author": {
+    "name": "Brainstack",
+    "email": "hello@usebrainstack.com"
+  },
+  "homepage": "https://usebrainstack.com",
+  "license": "UNLICENSED",
+  "keywords": [
+    "knowledge-management",
+    "rbac",
+    "mcp",
+    "oauth",
+    "zero-install",
+    "cross-platform",
+    "codex",
+    "chatgpt"
+  ],
+  "interface": {
+    "displayName": "Brainstack",
+    "shortDescription": "Your company memory — capture + connector",
+    "longDescription": "Brainstack captures your local Codex / ChatGPT-work sessions automatically and gives you the Brainstack connector to query your brain, all from one native binary (no Node required). Sign in once; secret-less OAuth.",
+    "developerName": "Brainstack",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://usebrainstack.com",
+    "defaultPrompt": [
+      "Search my brain for what we decided about ..."
+    ]
+  }
+}
