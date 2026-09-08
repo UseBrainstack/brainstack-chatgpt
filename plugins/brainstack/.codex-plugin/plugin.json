@@ -18,6 +18,7 @@
     "codex",
     "chatgpt"
   ],
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Brainstack",
     "shortDescription": "Your company memory — capture + connector",
