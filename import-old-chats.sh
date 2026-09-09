@@ -22,15 +22,12 @@ MCP
 export CLAUDE_PLUGIN_ROOT="$WORK"
 export HOME="$WORK"   # keep the sign-in token inside the temp folder → deleted on cleanup
 
-# 3) Sign in to Brainstack (always fresh — never reuse another app's token, so this
-#    always lands in the person's Brainstack account, even if they run VG Brain).
-if [ ! -f "$WORK/.vgb/token.json" ]; then
-  echo "A browser window will open — sign in with your work email to Brainstack."
-  ( printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"import","version":"1"}}}\n'; sleep 180 ) | "$BSB" connect https://usebrainstack.com/mcp >/dev/null 2>&1 &
-  CP=$!
-  for i in $(seq 1 90); do [ -f "$WORK/.vgb/token.json" ] && break; sleep 2; done
-  kill "$CP" 2>/dev/null || true
-fi
+# 3) Sign in to Brainstack — always a fresh browser sign-in via `vgb login` (no
+#    token reuse, so it targets the RIGHT account). HOME is the temp folder, so the
+#    token lands there → deleted on cleanup. `login` runs the whole OAuth flow
+#    itself and exits — no stdin nudging, no background connect to babysit.
+echo "A browser window will open — sign in with your work email to Brainstack."
+"$BSB" login https://usebrainstack.com/mcp || true
 [ -f "$WORK/.vgb/token.json" ] || { echo "Sign-in didn't finish — re-run when you're ready."; exit 1; }
 echo "Signed in."
 

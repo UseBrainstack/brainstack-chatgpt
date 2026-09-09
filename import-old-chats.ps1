@@ -19,19 +19,21 @@ try {
   $env:CLAUDE_PLUGIN_ROOT = $WORK
   $env:USERPROFILE = $WORK   # keep the sign-in token inside the temp folder → deleted on cleanup
 
-  # 3) Sign in — reuse an existing token if present (fast), else open the browser.
+  # 3) Sign in to Brainstack — always a fresh browser sign-in via `vgb login`
+  #    (no token reuse, so it targets the RIGHT account — not whatever was cached
+  #    on this machine). USERPROFILE is the temp folder, so the token lands there
+  #    and is deleted on exit. `login` runs the whole OAuth handshake itself and
+  #    exits — no stdin nudging, no background process to kill.
   $tok = Join-Path $WORK ".vgb\token.json"
-  $realTok = Join-Path $REAL ".vgb\token.json"
-  if (Test-Path $realTok) { Copy-Item $realTok $tok -Force }
-  if (-not (Test-Path $tok)) {
-    Write-Host "A browser window will open — sign in with your work email to Brainstack."
-    $init = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"import","version":"1"}}}'
-    $p = Start-Process -FilePath $BSB -ArgumentList @("connect","https://usebrainstack.com/mcp") -PassThru -RedirectStandardInput ([System.IO.Path]::GetTempFileName()) -WindowStyle Hidden
-    $init | & $BSB connect "https://usebrainstack.com/mcp" 2>$null | Out-Null   # nudge auth
-    for ($i=0; $i -lt 90 -and -not (Test-Path $tok); $i++) { Start-Sleep -Seconds 2 }
-    if ($p -and -not $p.HasExited) { $p.Kill() }
-  }
-  if (-not (Test-Path $tok)) { Write-Host "Sign-in didn't finish — re-run when you're ready."; return }
+  Write-Host "A browser window will open — sign in with your work email to Brainstack."
+  # Native commands print progress to stderr; under -ErrorAction Stop PowerShell
+  # can mis-read that as a failure, so run the sign-in under Continue and judge it
+  # purely by its exit code + whether the token actually landed.
+  $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+  & $BSB login "https://usebrainstack.com/mcp" 2>&1 | ForEach-Object { Write-Host $_ }
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = $prev
+  if ($code -ne 0 -or -not (Test-Path $tok)) { Write-Host "Sign-in didn't finish — re-run when you're ready."; return }
   Write-Host "Signed in."
 
   # 4) Find your chats (from your real home).
@@ -66,6 +68,9 @@ try {
   }
   $realFwd = $REAL -replace '\\','/'
   Write-Host "Uploading..."
+  # Uploads run native vgb.exe repeatedly; keep ErrorAction on Continue so a hook's
+  # stderr chatter can't abort the batch (hook always exits 0 anyway).
+  $ErrorActionPreference = 'Continue'
   foreach ($f in ($all | Select-Object -First $limit)) {
     if ($f.Length -eq 0) { continue }
     $sid = Get-Sid $f
