@@ -19,10 +19,9 @@ try {
   $env:CLAUDE_PLUGIN_ROOT = $WORK
   $env:USERPROFILE = $WORK   # keep the sign-in token inside the temp folder → deleted on cleanup
 
-  # 3) Sign in — reuse existing if present, else open the browser.
-  $realTok = Join-Path $REAL ".vgb\token.json"
+  # 3) Sign in to Brainstack (always fresh — never reuse another app's token, so
+  #    this always lands in the person's Brainstack account, even if they run VG Brain).
   $tok = Join-Path $WORK ".vgb\token.json"
-  if (Test-Path $realTok) { Copy-Item $realTok $tok -Force }
   if (-not (Test-Path $tok)) {
     Write-Host "A browser window will open — sign in with your work email to Brainstack."
     $init = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"import","version":"1"}}}'
@@ -37,6 +36,9 @@ try {
   # 4) Find your chats (from your real home).
   $claude = @()
   $claude += Get-ChildItem "$REAL\.claude\projects" -Recurse -Filter *.jsonl -EA SilentlyContinue
+  # Cowork (Claude desktop) — the Windows Store app redirects data into Packages\Claude_*\LocalCache\Roaming.
+  $pkg = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Directory -Filter "Claude_*" -EA SilentlyContinue | Select-Object -First 1
+  if ($pkg) { $claude += Get-ChildItem (Join-Path $pkg.FullName "LocalCache\Roaming\Claude\local-agent-mode-sessions") -Recurse -Filter audit.jsonl -EA SilentlyContinue }
   $claude += Get-ChildItem "$env:APPDATA\Claude\local-agent-mode-sessions" -Recurse -Filter audit.jsonl -EA SilentlyContinue
   $codex  = Get-ChildItem "$REAL\.codex\sessions","$REAL\.codex\archived_sessions" -Recurse -Filter rollout-*.jsonl -EA SilentlyContinue
   $all = @($claude) + @($codex) | Sort-Object LastWriteTime -Descending
