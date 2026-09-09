@@ -1,7 +1,7 @@
 {
   "name": "brainstack",
   "version": "0.1.0",
-  "description": "Brainstack for the ChatGPT desktop app (Codex + ChatGPT-work) — one native binary does the connector AND automatic capture hooks. No Node. Secret-less OAuth.",
+  "description": "Brainstack for the ChatGPT desktop app (Codex + ChatGPT-work) \u2014 one native binary does the connector AND automatic capture hooks. No Node. Secret-less OAuth.",
   "author": {
     "name": "Brainstack",
     "email": "hello@usebrainstack.com"
@@ -21,7 +21,7 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Brainstack",
-    "shortDescription": "Your company memory — capture + connector",
+    "shortDescription": "Your company memory \u2014 capture + connector",
     "longDescription": "Brainstack captures your local Codex / ChatGPT-work sessions automatically and gives you the Brainstack connector to query your brain, all from one native binary (no Node required). Sign in once; secret-less OAuth.",
     "developerName": "Brainstack",
     "category": "Productivity",
@@ -33,5 +33,31 @@
     "defaultPrompt": [
       "Search my brain for what we decided about ..."
     ]
+  },
+  "hooks": {
+    "hooks": {
+      "SessionStart": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "sh -c 'B=$(ls -t \"$HOME\"/.codex/plugins/cache/*brainstack-chatgpt*/*/*/runtime/vgb 2>/dev/null|head -1);[ -x \"$B\" ]&&\"$B\" hook session-catchup'",
+              "timeout": 30
+            }
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "sh -c 'B=$(ls -t \"$HOME\"/.codex/plugins/cache/*brainstack-chatgpt*/*/*/runtime/vgb 2>/dev/null|head -1);[ -x \"$B\" ]&&exec \"$B\" hook session-end'",
+              "timeout": 30
+            }
+          ]
+        }
+      ]
+    }
   }
 }
