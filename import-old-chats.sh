@@ -41,17 +41,34 @@ NCLA=$( { find "$REALHOME/.claude/projects" -name '*.jsonl' 2>/dev/null; find "$
 NCDX=$( find "$REALHOME/.codex/sessions" "$REALHOME/.codex/archived_sessions" -name 'rollout-*.jsonl' 2>/dev/null | grep -c . )
 TOTAL=$((NCLA+NCDX))
 if [ "$TOTAL" -eq 0 ]; then echo "No local chats found on this computer. Nothing to import."; exit 0; fi
-ALLMIN=$(( (TOTAL*2 + 59) / 60 )); [ "$ALLMIN" -lt 1 ] && ALLMIN=1
+RATE=2                                                    # ~seconds per chat
+ALLMIN=$(( (TOTAL*RATE + 59) / 60 )); [ "$ALLMIN" -lt 1 ] && ALLMIN=1
+N50=$(( TOTAL < 50 ? TOTAL : 50 )); M50=$(( (N50*RATE + 59) / 60 )); [ "$M50" -lt 1 ] && M50=1
 
 echo ""
 echo "Found on this computer:  $NCLA Claude chats  ·  $NCDX Codex/ChatGPT chats  ·  $TOTAL total"
 echo ""
-echo "  [1] Upload the 15 most recent   (~1 min)"
-echo "  [2] Upload everything           (~${ALLMIN} min)"
-echo "  [3] Skip"
-printf "Choose [1/2/3]: "
-read -r CHOICE < /dev/tty || CHOICE=3
-case "$CHOICE" in 1) LIMIT=15;; 2) LIMIT="$TOTAL";; *) echo "Skipped."; exit 0;; esac
+echo "How many of your past chats should we bring in?"
+echo ""
+echo "  [1] Everything            ($TOTAL chats, ~${ALLMIN} min)   <- recommended"
+echo "  [2] The $N50 most recent    (~${M50} min)"
+echo "  [3] The 15 most recent    (~1 min)"
+echo "  [4] A custom number"
+echo "  [5] Skip for now"
+echo ""
+printf "Choose 1-5  (press Enter for 1 = everything): "
+read -r CHOICE < /dev/tty || CHOICE=1
+[ -z "$CHOICE" ] && CHOICE=1
+case "$CHOICE" in
+  1) LIMIT="$TOTAL";;
+  2) LIMIT="$N50";;
+  3) LIMIT=$(( TOTAL < 15 ? TOTAL : 15 ));;
+  4) printf "How many? (a number, e.g. 500): "
+     read -r NUM < /dev/tty || NUM=""
+     case "$NUM" in ""|*[!0-9]*) echo "That wasn't a number — nothing imported. Re-run when ready."; exit 0;; esac
+     LIMIT=$(( NUM < TOTAL ? NUM : TOTAL ));;
+  *) echo "Skipped."; exit 0;;
+esac
 
 # 5) Upload the newest LIMIT sessions, 6 in parallel.
 sid_for(){ case "$1" in

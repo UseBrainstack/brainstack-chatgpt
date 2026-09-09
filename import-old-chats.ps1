@@ -26,15 +26,16 @@ try {
   #    exits — no stdin nudging, no background process to kill.
   $tok = Join-Path $WORK ".vgb\token.json"
   Write-Host "A browser window will open — sign in with your work email to Brainstack."
-  # Native commands print progress to stderr; under -ErrorAction Stop PowerShell
-  # can mis-read that as a failure, so run the sign-in under Continue and judge it
-  # purely by its exit code + whether the token actually landed.
+  Write-Host "(If it doesn't open, copy the https://usebrainstack.com/... link it prints into your browser.)"
+  # Run the sign-in BARE (no 2>&1 pipe): piping a native command's stderr is what
+  # produced the confusing 'System.Management.Automation.RemoteException' lines.
+  # Its progress now prints cleanly; judge success by exit code + token presence.
   $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-  & $BSB login "https://usebrainstack.com/mcp" 2>&1 | ForEach-Object { Write-Host $_ }
+  & $BSB login "https://usebrainstack.com/mcp"
   $code = $LASTEXITCODE
   $ErrorActionPreference = $prev
   if ($code -ne 0 -or -not (Test-Path $tok)) { Write-Host "Sign-in didn't finish — re-run when you're ready."; return }
-  Write-Host "Signed in."
+  Write-Host "Signed in.  Give it a second — finding your chats..."
 
   # 4) Find your chats (from your real home).
   # -Force is required: the Store-app data folders are hidden, so without it Get-ChildItem skips them.
@@ -48,16 +49,36 @@ try {
   $all = @($claude) + @($codex) | Sort-Object LastWriteTime -Descending
   $total = $all.Count
   if ($total -eq 0) { Write-Host "No local chats found on this computer. Nothing to import."; return }
-  $allmin = [Math]::Max(1, [Math]::Ceiling($total*3/60))
+  $rate = 3                                                    # ~seconds per chat
+  $mAll = [Math]::Max(1, [Math]::Ceiling($total*$rate/60))
+  $n50  = [Math]::Min(50, $total)
+  $m50  = [Math]::Max(1, [Math]::Ceiling($n50*$rate/60))
 
   Write-Host ""
   Write-Host ("Found on this computer:  {0} Claude chats  ·  {1} Codex/ChatGPT chats  ·  {2} total" -f $claude.Count, $codex.Count, $total)
   Write-Host ""
-  Write-Host "  [1] Upload the 15 most recent   (~1 min)"
-  Write-Host ("  [2] Upload everything           (~{0} min)" -f $allmin)
-  Write-Host "  [3] Skip"
-  $choice = Read-Host "Choose [1/2/3]"
-  switch ($choice) { "1" { $limit = 15 } "2" { $limit = $total } default { Write-Host "Skipped."; return } }
+  Write-Host "How many of your past chats should we bring in?"
+  Write-Host ""
+  Write-Host ("  [1] Everything            ({0} chats, ~{1} min)   <- recommended" -f $total, $mAll)
+  Write-Host ("  [2] The {0} most recent    (~{1} min)" -f $n50, $m50)
+  Write-Host "  [3] The 15 most recent    (~1 min)"
+  Write-Host "  [4] A custom number"
+  Write-Host "  [5] Skip for now"
+  Write-Host ""
+  $choice = Read-Host "Choose 1-5  (press Enter for 1 = everything)"
+  if ([string]::IsNullOrWhiteSpace($choice)) { $choice = "1" }
+  switch ($choice) {
+    "1" { $limit = $total }
+    "2" { $limit = $n50 }
+    "3" { $limit = [Math]::Min(15, $total) }
+    "4" {
+      $n = Read-Host "How many? (a number, e.g. 500)"
+      $parsed = 0
+      if ([int]::TryParse($n, [ref]$parsed) -and $parsed -gt 0) { $limit = [Math]::Min($parsed, $total) }
+      else { Write-Host "That wasn't a number — nothing imported. Re-run when ready."; return }
+    }
+    default { Write-Host "Skipped."; return }
+  }
 
   # 5) Upload the newest $limit sessions.
   function Get-Sid($f) {
