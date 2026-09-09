@@ -14,8 +14,12 @@ try {
   Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/UseBrainstack/brainstack-chatgpt/main/plugins/brainstack/runtime/vgb.exe" -OutFile $BSB
   Unblock-File $BSB -ErrorAction SilentlyContinue
 
-  # 2) Endpoint config.
-  '{ "mcpServers": { "brainstack": { "command": "./bin/vgb.exe", "args": ["connect","https://usebrainstack.com/mcp"] } } }' | Set-Content (Join-Path $WORK ".mcp.json") -Encoding UTF8
+  # 2) Endpoint config. Write WITHOUT a BOM: Windows PowerShell 5.1
+  # `Set-Content -Encoding UTF8` prepends a UTF-8 BOM, and the binary's JSON
+  # parser rejects a leading BOM — which silently zeroed out the endpoint and
+  # made every upload a no-op (sign-in still worked, so it looked fine). The
+  # .NET writer with UTF8Encoding($false) guarantees no BOM on 5.1 and 7+.
+  [System.IO.File]::WriteAllText((Join-Path $WORK ".mcp.json"), '{ "mcpServers": { "brainstack": { "command": "./bin/vgb.exe", "args": ["connect","https://usebrainstack.com/mcp"] } } }', (New-Object System.Text.UTF8Encoding($false)))
   $env:CLAUDE_PLUGIN_ROOT = $WORK
   $env:USERPROFILE = $WORK   # keep the sign-in token inside the temp folder → deleted on cleanup
 
