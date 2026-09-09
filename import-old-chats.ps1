@@ -19,9 +19,10 @@ try {
   $env:CLAUDE_PLUGIN_ROOT = $WORK
   $env:USERPROFILE = $WORK   # keep the sign-in token inside the temp folder → deleted on cleanup
 
-  # 3) Sign in to Brainstack (always fresh — never reuse another app's token, so
-  #    this always lands in the person's Brainstack account, even if they run VG Brain).
+  # 3) Sign in — reuse an existing token if present (fast), else open the browser.
   $tok = Join-Path $WORK ".vgb\token.json"
+  $realTok = Join-Path $REAL ".vgb\token.json"
+  if (Test-Path $realTok) { Copy-Item $realTok $tok -Force }
   if (-not (Test-Path $tok)) {
     Write-Host "A browser window will open — sign in with your work email to Brainstack."
     $init = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"import","version":"1"}}}'
