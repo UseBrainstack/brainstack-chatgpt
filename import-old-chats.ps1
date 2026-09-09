@@ -34,13 +34,14 @@ try {
   Write-Host "Signed in."
 
   # 4) Find your chats (from your real home).
+  # -Force is required: the Store-app data folders are hidden, so without it Get-ChildItem skips them.
   $claude = @()
-  $claude += Get-ChildItem "$REAL\.claude\projects" -Recurse -Filter *.jsonl -EA SilentlyContinue
+  $claude += Get-ChildItem "$REAL\.claude\projects" -Recurse -Filter *.jsonl -Force -EA SilentlyContinue
   # Cowork (Claude desktop) — the Windows Store app redirects data into Packages\Claude_*\LocalCache\Roaming.
-  $pkg = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Directory -Filter "Claude_*" -EA SilentlyContinue | Select-Object -First 1
-  if ($pkg) { $claude += Get-ChildItem (Join-Path $pkg.FullName "LocalCache\Roaming\Claude\local-agent-mode-sessions") -Recurse -Filter audit.jsonl -EA SilentlyContinue }
-  $claude += Get-ChildItem "$env:APPDATA\Claude\local-agent-mode-sessions" -Recurse -Filter audit.jsonl -EA SilentlyContinue
-  $codex  = Get-ChildItem "$REAL\.codex\sessions","$REAL\.codex\archived_sessions" -Recurse -Filter rollout-*.jsonl -EA SilentlyContinue
+  $pkg = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Directory -Filter "Claude_*" -Force -EA SilentlyContinue | Select-Object -First 1
+  if ($pkg) { $claude += Get-ChildItem (Join-Path $pkg.FullName "LocalCache\Roaming\Claude\local-agent-mode-sessions") -Recurse -Filter audit.jsonl -Force -EA SilentlyContinue }
+  $claude += Get-ChildItem "$env:APPDATA\Claude\local-agent-mode-sessions" -Recurse -Filter audit.jsonl -Force -EA SilentlyContinue
+  $codex  = Get-ChildItem "$REAL\.codex\sessions","$REAL\.codex\archived_sessions" -Recurse -Filter rollout-*.jsonl -Force -EA SilentlyContinue
   $all = @($claude) + @($codex) | Sort-Object LastWriteTime -Descending
   $total = $all.Count
   if ($total -eq 0) { Write-Host "No local chats found on this computer. Nothing to import."; return }
