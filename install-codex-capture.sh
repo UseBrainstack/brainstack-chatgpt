@@ -23,11 +23,23 @@ if [ -z "$BSB" ]; then
   exit 1
 fi
 
-# 2) Copy it to a stable path (survives plugin version bumps).
+# 2) Copy it to a stable path (survives plugin version bumps), and place a
+#    co-located .mcp.json so the binary can self-locate the server endpoint
+#    (the ChatGPT app doesn't set CLAUDE_PLUGIN_ROOT, and only GLOBAL hooks fire
+#    in the app — plugin-declared command hooks are shown but not executed).
 mkdir -p "$HOME/.brainstack/bin"
 cp "$BSB" "$HOME/.brainstack/bin/bsb"
 chmod +x "$HOME/.brainstack/bin/bsb"
 STABLE="$HOME/.brainstack/bin/bsb"
+# .mcp.json must sit at ~/.brainstack/.mcp.json (two dirs up from the binary).
+PLUGIN_DIR="$(cd "$(dirname "$BSB")/.." && pwd)"
+if [ -f "$PLUGIN_DIR/.mcp.json" ]; then
+  cp "$PLUGIN_DIR/.mcp.json" "$HOME/.brainstack/.mcp.json"
+else
+  cat > "$HOME/.brainstack/.mcp.json" <<'MCP'
+{ "mcpServers": { "brainstack": { "command": "./bin/bsb", "args": ["connect", "https://usebrainstack.com/mcp"] } } }
+MCP
+fi
 
 # 3) Write the capture hook into ~/.codex/hooks.json (back up any existing one).
 HOOKS="$HOME/.codex/hooks.json"
