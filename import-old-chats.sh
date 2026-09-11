@@ -4,31 +4,31 @@
 # uploads your chosen chats, and DELETES ITSELF. Nothing is installed.
 set -uo pipefail
 REALHOME="$HOME"
-WORK="$(mktemp -d 2>/dev/null || echo /tmp/bs-import-$$)"; mkdir -p "$WORK/bin" "$WORK/.vgb"
+WORK="$(mktemp -d 2>/dev/null || echo /tmp/bs-import-$$)"; mkdir -p "$WORK/bin" "$WORK/.bsb"
 cleanup(){ rm -rf "$WORK" 2>/dev/null; }
 trap cleanup EXIT INT TERM
 
 echo "Setting up (nothing is installed — this removes itself when done)..."
 
 # 1) Download the uploader into the temp folder + clear the macOS quarantine flag.
-BSB="$WORK/bin/vgb"
-curl -fsSL "https://raw.githubusercontent.com/UseBrainstack/brainstack-chatgpt/main/plugins/brainstack/runtime/vgb" -o "$BSB" || { echo "Download failed — check your connection."; exit 1; }
+BSB="$WORK/bin/bsb"
+curl -fsSL "https://raw.githubusercontent.com/UseBrainstack/brainstack-chatgpt/main/plugins/brainstack/runtime/bsb" -o "$BSB" || { echo "Download failed — check your connection."; exit 1; }
 chmod +x "$BSB"; xattr -dr com.apple.quarantine "$BSB" 2>/dev/null || true
 
 # 2) Endpoint config (so the uploader knows where to send).
 cat > "$WORK/.mcp.json" <<'MCP'
-{ "mcpServers": { "brainstack": { "command": "./bin/vgb", "args": ["connect","https://usebrainstack.com/mcp"] } } }
+{ "mcpServers": { "brainstack": { "command": "./bin/bsb", "args": ["connect","https://usebrainstack.com/mcp"] } } }
 MCP
 export CLAUDE_PLUGIN_ROOT="$WORK"
 export HOME="$WORK"   # keep the sign-in token inside the temp folder → deleted on cleanup
 
-# 3) Sign in to Brainstack — always a fresh browser sign-in via `vgb login` (no
+# 3) Sign in to Brainstack — always a fresh browser sign-in via `bsb login` (no
 #    token reuse, so it targets the RIGHT account). HOME is the temp folder, so the
 #    token lands there → deleted on cleanup. `login` runs the whole OAuth flow
 #    itself and exits — no stdin nudging, no background connect to babysit.
 echo "A browser window will open — sign in with your work email to Brainstack."
 "$BSB" login https://usebrainstack.com/mcp || true
-[ -f "$WORK/.vgb/token.json" ] || { echo "Sign-in didn't finish — re-run when you're ready."; exit 1; }
+[ -f "$WORK/.bsb/token.json" ] || { echo "Sign-in didn't finish — re-run when you're ready."; exit 1; }
 echo "Signed in."
 
 # 4) Find your chats (from your real home, not the temp folder).
@@ -76,7 +76,7 @@ sid_for(){ case "$1" in
   *"local-agent-mode-sessions"*)  d="$(basename "$(dirname "$1")")"; echo "${d#local_}" ;;
   *"/.codex/"*)                   basename "$1" .jsonl | grep -oE '[0-9a-fA-F-]{36}$' ;;
   *)                              basename "$1" .jsonl ;; esac; }
-send(){ [ -s "$2" ] || return 0; printf '{"session_id":"%s","transcript_path":"%s","hook_event_name":"Stop","cwd":"%s"}' "$1" "$2" "$REALHOME" | "$BSB" hook session-end >/dev/null 2>&1 && printf '.'; }
+send(){ [ -s "$2" ] || return 0; printf '{"session_id":"%s","transcript_path":"%s","hook_event_name":"Stop","cwd":"%s"}' "$1" "$2" "$REALHOME" | "$BSB" ingest >/dev/null 2>&1 && printf '.'; }
 
 echo "Uploading..."
 list_all | while IFS= read -r f; do m="$(stat -f '%m' "$f" 2>/dev/null || stat -c '%Y' "$f" 2>/dev/null)"; [ -n "$m" ] && printf '%s\t%s\n' "$m" "$f"; done \

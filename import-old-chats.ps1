@@ -4,14 +4,14 @@
 $ErrorActionPreference = "Stop"
 $REAL = $env:USERPROFILE
 $WORK = Join-Path ([System.IO.Path]::GetTempPath()) ("bs-import-" + [System.Guid]::NewGuid().ToString("N").Substring(0,8))
-New-Item -ItemType Directory -Force -Path (Join-Path $WORK "bin"), (Join-Path $WORK ".vgb") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $WORK "bin"), (Join-Path $WORK ".bsb") | Out-Null
 
 try {
   Write-Host "Setting up (nothing is installed — this removes itself when done)..."
 
   # 1) Download the uploader + clear the "downloaded from the internet" flag.
-  $BSB = Join-Path $WORK "bin\vgb.exe"
-  Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/UseBrainstack/brainstack-chatgpt/main/plugins/brainstack/runtime/vgb.exe" -OutFile $BSB
+  $BSB = Join-Path $WORK "bin\bsb.exe"
+  Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/UseBrainstack/brainstack-chatgpt/main/plugins/brainstack/runtime/bsb.exe" -OutFile $BSB
   Unblock-File $BSB -ErrorAction SilentlyContinue
 
   # 2) Endpoint config. Write WITHOUT a BOM: Windows PowerShell 5.1
@@ -19,16 +19,16 @@ try {
   # parser rejects a leading BOM — which silently zeroed out the endpoint and
   # made every upload a no-op (sign-in still worked, so it looked fine). The
   # .NET writer with UTF8Encoding($false) guarantees no BOM on 5.1 and 7+.
-  [System.IO.File]::WriteAllText((Join-Path $WORK ".mcp.json"), '{ "mcpServers": { "brainstack": { "command": "./bin/vgb.exe", "args": ["connect","https://usebrainstack.com/mcp"] } } }', (New-Object System.Text.UTF8Encoding($false)))
+  [System.IO.File]::WriteAllText((Join-Path $WORK ".mcp.json"), '{ "mcpServers": { "brainstack": { "command": "./bin/bsb.exe", "args": ["connect","https://usebrainstack.com/mcp"] } } }', (New-Object System.Text.UTF8Encoding($false)))
   $env:CLAUDE_PLUGIN_ROOT = $WORK
   $env:USERPROFILE = $WORK   # keep the sign-in token inside the temp folder → deleted on cleanup
 
-  # 3) Sign in to Brainstack — always a fresh browser sign-in via `vgb login`
+  # 3) Sign in to Brainstack — always a fresh browser sign-in via `bsb login`
   #    (no token reuse, so it targets the RIGHT account — not whatever was cached
   #    on this machine). USERPROFILE is the temp folder, so the token lands there
   #    and is deleted on exit. `login` runs the whole OAuth handshake itself and
   #    exits — no stdin nudging, no background process to kill.
-  $tok = Join-Path $WORK ".vgb\token.json"
+  $tok = Join-Path $WORK ".bsb\token.json"
   Write-Host "A browser window will open — sign in with your work email to Brainstack."
   Write-Host "(If it doesn't open, copy the https://usebrainstack.com/... link it prints into your browser.)"
   # Run the sign-in BARE (no 2>&1 pipe): piping a native command's stderr is what
@@ -93,7 +93,7 @@ try {
   }
   $realFwd = $REAL -replace '\\','/'
   Write-Host "Uploading..."
-  # Uploads run native vgb.exe repeatedly; keep ErrorAction on Continue so a hook's
+  # Uploads run native bsb.exe repeatedly; keep ErrorAction on Continue so a hook's
   # stderr chatter can't abort the batch (hook always exits 0 anyway).
   $ErrorActionPreference = 'Continue'
   foreach ($f in ($all | Select-Object -First $limit)) {
@@ -101,7 +101,7 @@ try {
     $sid = Get-Sid $f
     $pth = ($f.FullName -replace '\\','/')
     $payload = '{"session_id":"' + $sid + '","transcript_path":"' + $pth + '","hook_event_name":"Stop","cwd":"' + $realFwd + '"}'
-    $payload | & $BSB hook session-end 2>$null | Out-Null
+    $payload | & $BSB ingest 2>$null | Out-Null
     Write-Host -NoNewline "."
   }
   Write-Host ""

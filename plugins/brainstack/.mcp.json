@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "brainstack": {
-      "command": "./runtime/vgb",
+      "command": "./runtime/bsb",
       "args": [
         "connect",
         "https://usebrainstack.com/mcp"
